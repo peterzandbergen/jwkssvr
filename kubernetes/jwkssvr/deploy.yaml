@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jwksfix
+spec:
+  selector:
+    matchLabels:
+      app: jwksfix
+  template:
+    metadata:
+      labels:
+        app: jwksfix
+    spec:
+      containers:
+      - name: jwksfix
+        image: cir-cn.chp.belastingdienst.nl/zandp06/jwkssvr:latest
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "10m"
+          limits:
+            memory: "128Mi"
+            cpu: "10m"
+        ports:
+        - containerPort: 8080
