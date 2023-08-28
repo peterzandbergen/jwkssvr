@@ -72,6 +72,9 @@ func (s *server) routes() {
 func (s *server) logWithHeaders(r *http.Request) *slog.Logger {
 	var vals []any
 	for k, h := range r.Header {
+		if k == "Authorization" {
+			continue
+		}
 		vals = append(vals, slog.String(k, h[0]))
 	}
 	return s.logger.WithGroup("headers").With(vals...)
@@ -90,6 +93,14 @@ func (s *server) newHandleJWKS(filter jwksFilterFunc) http.HandlerFunc {
 				slog.String("path", r.URL.Path),
 			)
 		}(time.Now())
+
+		// Only serve GET
+		if r.Method != http.MethodGet {
+			status := http.StatusMethodNotAllowed
+			http.Error(w, http.StatusText(status), status)
+			return
+		}
+
 		startRetrieve := time.Now()
 		ks, err := getJWKS(s.jwksURI, filter)
 		endRetrieve := time.Since(startRetrieve)

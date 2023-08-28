@@ -13,7 +13,7 @@ Usage of jwkssvr:
     	If discovery fails it uses -jwks-uri to retrieve the JWKS.
   -jwks-uri string
     	remote jwks uri [JWKS_URI]
-    	This flag is ignored when the -issuer is an url and can be discovered.
+    	This flag is ignored when the -issuer is a url and can be discovered.
   -log-format string
     	log format [ text | json ] [LOG_FORMAT]
   -log-level string
