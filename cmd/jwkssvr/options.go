@@ -43,10 +43,12 @@ type options struct {
 func (o *options) parseFlags(args []string) {
 	fs := flag.NewFlagSet("jwkssvr", flag.ContinueOnError)
 	port := fs.String(FlagPort, "", "port number to listen on, listens on all interfaces, defaults to 8080 [PORT]")
-	jwksUri := fs.String(FlagJwksUri, "", "remote jwks uri [JWKS_URI]")
+	jwksUri := fs.String(FlagJwksUri, "", "remote jwks uri [JWKS_URI]\nThis flag is ignored when the -issuer is an url and can be discovered.")
 	logLevel := fs.String(FlagLogLevel, "", "log level [info | warn | error | debug], defaults to info [LOG_LEVEL]")
 	logFormat := fs.String(FlagLogFormat, "", "log format [ text | json ] [LOG_FORMAT]")
-	issuer := fs.String("issuer", "", "issuer, when a valid URL this will be used to discover the jwksUri [ISSUER]")
+	issuer := fs.String(
+		"issuer", "",
+		fmt.Sprintf("issuer, when a valid URL this will be used to discover the jwksUri [ISSUER]\nIf discovery fails it uses -%s to retrieve the JWKS.", FlagJwksUri))
 	fs.BoolVar(&o.DryRun, FlagDryRun, false, "print the settings and exit")
 	fs.BoolVar(&o.Version, FlagVersion, false, "print the version and exit")
 	fs.Parse(args)

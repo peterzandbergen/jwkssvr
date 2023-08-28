@@ -10,8 +10,10 @@ Usage of jwkssvr:
     	print the settings and exit
   -issuer string
     	issuer, when a valid URL this will be used to discover the jwksUri [ISSUER]
+    	If discovery fails it uses -jwks-uri to retrieve the JWKS.
   -jwks-uri string
     	remote jwks uri [JWKS_URI]
+    	This flag is ignored when the -issuer is an url and can be discovered.
   -log-format string
     	log format [ text | json ] [LOG_FORMAT]
   -log-level string
