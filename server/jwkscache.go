@@ -45,4 +45,3 @@ func (c JWKSCache) Bytes() []byte {
 	c.mut.Unlock()
 	return c.cache
 }
-

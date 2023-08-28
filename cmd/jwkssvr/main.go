@@ -1,101 +1,64 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"os"
-	"time"
 
 	"golang.org/x/exp/slog"
-
-	"jkwksvr/jwks"
 )
 
 const (
 	JWKSPing = "https://fibi2.acc.belastingdienst.nl/pf/JWKS"
 )
 
-func filterWithAlg(k *jwks.JWK) bool {
-	return k.Algorithm != ""
-}
+var (
+	Version = "v0.0.3"
+	AppName = "jwkssvr"
+)
 
-func getJWKS(url string, f ...func(j *jwks.JWK) bool) (*jwks.JWKS, error) {
-	ff := func(_ *jwks.JWK) bool { return true }
-	if len(f) > 1 {
-		panic("max one f accepted")
-	}
-	if len(f) == 1 {
-		ff = f[0]
-	}
-
-	b, err := getJWKSBytes(url)
-	if err != nil {
-		return nil, err
-	}
-	var from jwks.JWKS
-	if err := json.Unmarshal(b, &from); err != nil {
-		return nil, err
-	}
-	var to jwks.JWKS
-	for _, j := range from.Keys {
-		if ff(&j) {
-			to.Keys = append(to.Keys, j)
-		}
-	}
-	return &to, nil
-}
-
-func getJWKSBytes(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	b, err := io.ReadAll(resp.Body)
-	return b, err
-}
-
-func newHandleJWKS(l *slog.Logger) http.HandlerFunc {
-	l = l.With(slog.String("handler", "HandleJWKS"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		defer func(start time.Time) {
-			l.Info(
-				"served request",
-				slog.Duration("duration", time.Since(start)),
-				slog.String("remote-host", r.RemoteAddr),
-				slog.String("path", r.URL.Path),
-			)
-		}(time.Now())
-		startRetrieve := time.Now()
-		ks, err := getJWKS(JWKSPing, filterWithAlg)
-		endRetrieve := time.Since(startRetrieve)
-		l.Info(
-			"retrieved jwks",
-			slog.Duration("duration", endRetrieve),
-		)
-		if err != nil {
-			l.Error("internal error", slog.String("err", err.Error()))
-			http.Error(w,
-				fmt.Errorf("error retrieving jwks from %s: %w", JWKSPing, err).Error(),
-				http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(ks)
-	}
+func buildLogger(opts *options) *slog.Logger {
+	logger := getLogger(opts.LogFormat, opts.LogLevel)
+	logger = logger.With(
+		slog.String("app", AppName),
+		slog.String("version", Version),
+	)
+	return logger
 }
 
 func main() {
 	opts := NewOptions()
 
+	if opts.Version {
+		fmt.Print(Version)
+		return
+	}
+
 	// Build the logger
-	logger := getLogger(opts.LogFormat, opts.LogLevel)
-	logger = logger.With(slog.String("app", os.Args[0]))
+	logger := buildLogger(opts)
 
 	// Determine the jwksURI if not set
-	if opts.RemoteJWKS == "" {
+	if opts.JWKSUri == "" {
 		opts.discoverJWKSUri()
+		logger.Info(
+			"discovered jwks_uri from issuer",
+			slog.String("issuer", opts.IssuerURL),
+			slog.String("jwks_uri", opts.JWKSUri),
+		)
 	}
+
+	// Exit if we have no jwks uri.
+	if opts.JWKSUri == "" {
+		logger.Error("jwksUri is empty", slog.String("use_default", JWKSPing))
+		os.Exit(1)
+	}
+	// if opts.JWKSUri
+	if _, err := url.Parse(opts.JWKSUri); err != nil {
+		logger.Error("error in jkwsUri", slog.String("err", err.Error()))
+		os.Exit(1)
+	}
+	logger.Info("no error in jkwsUri", slog.String("jwks_uri", opts.JWKSUri))
 
 	if opts.DryRun {
 		logger := logger.WithGroup("options")
@@ -104,18 +67,24 @@ func main() {
 			slog.String("PORT", opts.Port),
 			slog.String("LOG_FORMAT", opts.LogFormat),
 			slog.String("LOG_LEVEL", opts.LogLevel),
-			slog.String("JWKS_URI", opts.RemoteJWKS),
+			slog.String("JWKS_URI", opts.JWKSUri),
 			slog.String("ISSUER", opts.IssuerURL),
 		)
-		// fmt.Println(opts.String())
 		return
 	}
+
+	// Create server
+	svr := newServer()
+	svr.jwksURI = opts.JWKSUri
+	svr.logger = logger
+	svr.routes()
 
 	// Run Server
 	logger.Info(
 		"starting server",
 		slog.String("port", opts.Port),
-		slog.String("jwksUri", opts.RemoteJWKS),
+		slog.String("jwksUri", opts.JWKSUri),
 	)
-	http.ListenAndServe(":"+opts.Port, newHandleJWKS(logger))
+
+	http.ListenAndServe(":"+opts.Port, svr)
 }

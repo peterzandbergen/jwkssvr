@@ -25,17 +25,19 @@ const (
 	FlagLogFormat = "log-format"
 	FlagLogLevel  = "log-level"
 	FlagDryRun    = "dry-run"
+	FlagVersion   = "version"
 
 	DiscoverySuffix = ".well-known/openid-configuration"
 )
 
 type options struct {
-	Port       string // PORT, default 8080
-	IssuerURL  string // ISSUER, default empty
-	RemoteJWKS string // JWKS_URI, default https://fibi2.acc.belastingdienst.nl/pf/JWKS
-	LogLevel   string // LOG_LEVEL, default info
-	LogFormat  string // LOG_FORMAT, default text
-	DryRun     bool
+	Port      string // PORT, default 8080
+	IssuerURL string // ISSUER, default empty
+	JWKSUri   string // JWKS_URI, default https://fibi2.acc.belastingdienst.nl/pf/JWKS
+	LogLevel  string // LOG_LEVEL, default info
+	LogFormat string // LOG_FORMAT, default text
+	DryRun    bool
+	Version   bool
 }
 
 func (o *options) parseFlags(args []string) {
@@ -46,6 +48,7 @@ func (o *options) parseFlags(args []string) {
 	logFormat := fs.String(FlagLogFormat, "", "log format [ text | json ]")
 	issuer := fs.String("issuer", "", "issuer, when a valid URL this will be used to discover the jwksUri")
 	fs.BoolVar(&o.DryRun, FlagDryRun, false, "")
+	fs.BoolVar(&o.Version, FlagVersion, false, "")
 	fs.Parse(args)
 	if *port != "" {
 		o.Port = *port
@@ -54,7 +57,7 @@ func (o *options) parseFlags(args []string) {
 		o.IssuerURL = *issuer
 	}
 	if *jwksUri != "" {
-		o.RemoteJWKS = *jwksUri
+		o.JWKSUri = *jwksUri
 	}
 	if *logLevel != "" {
 		o.LogLevel = *logLevel
@@ -100,9 +103,9 @@ func getLogger(format string, level string) *slog.Logger {
 
 func (o *options) getFromEnv() {
 	o.Port = getEnv(EnvPort, "8080")
-	o.RemoteJWKS = getEnv(EnvJwksUri, "")
+	o.JWKSUri = getEnv(EnvJwksUri, "")
 	o.LogLevel = getEnv(EnvLogLevel, "info")
-	o.LogFormat = getEnv(EnvLogFormat, "text")
+	o.LogFormat = getEnv(EnvLogFormat, "json")
 	o.IssuerURL = getEnv(EnvIssuer, "")
 }
 
@@ -114,11 +117,11 @@ func NewOptions() *options {
 }
 
 func (o *options) String() string {
-	return fmt.Sprintf("JWKS_URI=%s LOG_LEVEL=%s LOG_FORMAT=%s dry-run=%t PORT=%s", o.RemoteJWKS, o.LogLevel, o.LogFormat, o.DryRun, o.Port)
+	return fmt.Sprintf("JWKS_URI=%s LOG_LEVEL=%s LOG_FORMAT=%s dry-run=%t PORT=%s", o.JWKSUri, o.LogLevel, o.LogFormat, o.DryRun, o.Port)
 }
 
 func (o *options) discoverJWKSUri() error {
-	if o.RemoteJWKS != "" ||  o.IssuerURL == "" {
+	if o.JWKSUri != "" || o.IssuerURL == "" {
 		return nil
 	}
 
@@ -142,7 +145,7 @@ func (o *options) discoverJWKSUri() error {
 		if !ok {
 			return fmt.Errorf("jwks_uri entry is not a string: %s", reflect.TypeOf(e).String())
 		}
-		o.RemoteJWKS = es
+		o.JWKSUri = es
 		return nil
 	}
 }

@@ -16,7 +16,9 @@ EXPOSE 8080
 
 RUN CGO_ENABLED=0 go build -o main ./cmd/jwkssvr
 
-FROM scratch
+# docker pull cir-cn.chp.belastingdienst.nl/zandp06/docker.io/alpine:3
+
+FROM cir-cn.chp.belastingdienst.nl/zandp06/docker.io/alpine:3
 
 ADD ./certs /etc/ssl/certs
 

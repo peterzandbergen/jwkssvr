@@ -27,7 +27,6 @@ func New() *Server {
 	return s
 }
 
-
 func (s *Server) handleJWKS() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
