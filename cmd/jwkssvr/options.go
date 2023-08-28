@@ -41,14 +41,14 @@ type options struct {
 }
 
 func (o *options) parseFlags(args []string) {
-	fs := flag.NewFlagSet("default", flag.ContinueOnError)
-	port := fs.String(FlagPort, "", "port number")
-	jwksUri := fs.String(FlagJwksUri, "", "remote jwks uri")
-	logLevel := fs.String(FlagLogLevel, "", "log level [info | warn | error | debug]")
-	logFormat := fs.String(FlagLogFormat, "", "log format [ text | json ]")
-	issuer := fs.String("issuer", "", "issuer, when a valid URL this will be used to discover the jwksUri")
-	fs.BoolVar(&o.DryRun, FlagDryRun, false, "")
-	fs.BoolVar(&o.Version, FlagVersion, false, "")
+	fs := flag.NewFlagSet("jwkssvr", flag.ContinueOnError)
+	port := fs.String(FlagPort, "", "port number to listen on, listens on all interfaces, defaults to 8080 [PORT]")
+	jwksUri := fs.String(FlagJwksUri, "", "remote jwks uri [JWKS_URI]")
+	logLevel := fs.String(FlagLogLevel, "", "log level [info | warn | error | debug], defaults to info [LOG_LEVEL]")
+	logFormat := fs.String(FlagLogFormat, "", "log format [ text | json ] [LOG_FORMAT]")
+	issuer := fs.String("issuer", "", "issuer, when a valid URL this will be used to discover the jwksUri [ISSUER]")
+	fs.BoolVar(&o.DryRun, FlagDryRun, false, "print the settings and exit")
+	fs.BoolVar(&o.Version, FlagVersion, false, "print the version and exit")
 	fs.Parse(args)
 	if *port != "" {
 		o.Port = *port
