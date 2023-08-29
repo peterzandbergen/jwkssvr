@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -94,7 +95,9 @@ func getLogger(format string, level string) *slog.Logger {
 	var lh slog.Handler
 	switch strings.ToLower(format) {
 	case "json":
-		lh = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{})
+		lh = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+			Level: getLoglevel(level),
+		})
 	default:
 		lh = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level: getLoglevel(level),
@@ -124,7 +127,7 @@ func (o *options) String() string {
 
 func (o *options) discoverJWKSUri() error {
 	if o.JWKSUri != "" || o.IssuerURL == "" {
-		return nil
+		return errors.New("issuer and jwks_uri are both empty")
 	}
 
 	url := o.IssuerURL + "/" + DiscoverySuffix
@@ -139,8 +142,11 @@ func (o *options) discoverJWKSUri() error {
 	}
 	// Find the jwksUri entry
 	{
+		if len(discovery) == 0 {
+			return fmt.Errorf("discovery response is empty")
+		}
 		e := discovery["jwks_uri"]
-		if e == nil {
+		if e == nil || e == "" {
 			return fmt.Errorf("cannot find jwks_uri entry in response from %s", url)
 		}
 		es, ok := e.(string)

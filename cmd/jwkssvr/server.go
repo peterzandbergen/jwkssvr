@@ -14,7 +14,9 @@ import (
 const (
 	HeaderContentType = "Content-Type"
 
-	ContentTypeJWKS = "application/json;charset=utf-8"
+	ContentTypeJSONUtf8 = "application/json;charset=utf-8"
+
+	HealthyResponse = `{"status":"healthy"}`
 )
 
 type jwksFilterFunc func(k *jwks.JWK) bool
@@ -51,14 +53,14 @@ func getJWKS(url string, f ...jwksFilterFunc) (*jwks.JWKS, error) {
 }
 
 type server struct {
-	*http.ServeMux
+	http.ServeMux
 	jwksURI string
 	logger  *slog.Logger
 }
 
 func newServer() *server {
 	return &server{
-		ServeMux: http.NewServeMux(),
+		// ServeMux: http.NewServeMux(),
 	}
 }
 
@@ -66,7 +68,8 @@ func (s *server) routes() {
 	s.HandleFunc("/", s.newHandleJWKS(filterWithAlg))
 	s.HandleFunc("/fixed", s.newHandleJWKS(filterWithAlg))
 	s.HandleFunc("/raw", s.newHandleJWKS(filterNone))
-
+	s.HandleFunc("/ready", s.newHealthHandler())
+	s.HandleFunc("/health", s.newHealthHandler())
 }
 
 func (s *server) logWithHeaders(r *http.Request) *slog.Logger {
@@ -115,8 +118,16 @@ func (s *server) newHandleJWKS(filter jwksFilterFunc) http.HandlerFunc {
 				http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set(HeaderContentType, ContentTypeJWKS)
+		w.Header().Set(HeaderContentType, ContentTypeJSONUtf8)
 		json.NewEncoder(w).Encode(ks)
+	}
+}
+
+func (s *server) newHealthHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(HeaderContentType, ContentTypeJSONUtf8)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(HealthyResponse))
 	}
 }
 
